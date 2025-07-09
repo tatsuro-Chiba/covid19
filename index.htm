@@ -1,0 +1,94 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>石巻市地形変化フェード＋ズーム</title>
+  <!-- Leaflet の CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet/dist/leaflet.css"
+  />
+  <style>
+    /* 地図を画面いっぱいに */
+    #map { width:100%; height:100vh; margin:0; padding:0; }
+    /* スライダーを地図上に重ねる */
+    #fadeSlider {
+      position: absolute;
+      top: 10px; left:50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      width: 300px;
+    }
+  </style>
+</head>
+<body>
+  <!-- 透明度を操作するスライダー -->
+  <input id="fadeSlider" type="range" min="0" max="1" step="0.01" value="0">
+
+  <!-- 地図コンテナ -->
+  <div id="map"></div>
+
+  <!-- Leaflet の JS -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+  // 1) 地理座標系 (Lat,Lon) とズームレベルを適宜設定
+  const centerLat = 38.445;    // 石巻市中心付近の緯度
+  const centerLon = 141.333;   // 石巻市中心付近の経度
+  const initialZoom = 13;      // 表示開始ズーム
+
+  // 2) 画像の地理範囲を指定（左下緯度経度, 右上緯度経度）
+  const imageBounds = [
+    [38.42, 141.30],  // 南西 (minLat, minLon)
+    [38.47, 141.37]   // 北東 (maxLat, maxLon)
+  ];
+
+  // 3) 地図を初期化
+  const map = L.map('map', {
+    center: [centerLat, centerLon],
+    zoom: initialZoom,
+    scrollWheelZoom: true  // マウスホイールでズーム可能
+  });
+
+  // 4) ベースタイルはお好みで。ここでは白背景のみ。
+  L.tileLayer('', { attribution: '' }).addTo(map);
+
+  // 5) 2 枚の画像を重ねる
+  const overlay2012 = L.imageOverlay('2012.jpg', imageBounds).addTo(map);
+  const overlay2025 = L.imageOverlay('2025.jpg', imageBounds).addTo(map);
+  overlay2025.setOpacity(0);  // 初期は透明
+
+  // 6) スライダーで手動フェード
+  const slider = document.getElementById('fadeSlider');
+  slider.addEventListener('input', () => {
+    overlay2025.setOpacity(parseFloat(slider.value));
+  });
+
+  // 7) 自動アニメーション設定
+  let fadeDir = 1;               // フェードの方向（1: 透明→不透明, -1: 逆）
+  let zoomLevel = initialZoom;
+  let zoomDir = 1;               // ズームの方向
+
+  function animate() {
+    // a) フェード：スライダー値を更新し、opacity をセット
+    let v = parseFloat(slider.value) + fadeDir * 0.005;
+    if (v >= 1 || v <= 0) fadeDir *= -1;
+    v = Math.min(1, Math.max(0, v));
+    slider.value = v;
+    overlay2025.setOpacity(v);
+
+    // b) ズーム：ズームレベルを少し増減
+    zoomLevel += zoomDir * 0.001;
+    if (zoomLevel > initialZoom + 1 || zoomLevel < initialZoom - 1) {
+      zoomDir *= -1;
+    }
+    map.setZoom(zoomLevel, { animate: false });
+
+    // c) パン：地図を少しずつ東へパン
+    map.panBy([1, 0], { animate: false });
+  }
+
+  // 8) アニメーションループ（100ms ごとに呼び出し）
+  setInterval(animate, 100);
+  </script>
+</body>
+</html>
